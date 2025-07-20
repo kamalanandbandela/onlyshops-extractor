@@ -3,10 +3,10 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import re
 
-st.set_page_config(page_title="OnlyShops Extractor Pro", layout="wide")
+st.set_page_config(page_title="OnlyShops Global Vendor Extractor", layout="wide")
 
-st.title("📦 OnlyShops Vendor Extractor Pro")
-st.write("Upload your saved Google search HTML file to extract vendor info (phone, email, Insta, website, etc.)")
+st.title("🌍 OnlyShops Global Vendor Extractor")
+st.write("Upload a saved Google Search HTML file to extract vendor contact data from any country (India, USA, Canada, etc.)")
 
 uploaded_file = st.file_uploader("Upload Google Search HTML File", type=["html", "htm"])
 
@@ -14,41 +14,52 @@ def extract_info_from_html(html_content):
     soup = BeautifulSoup(html_content, "html.parser")
     results = soup.find_all("div", class_="tF2Cxc")
     data = []
+
     for result in results:
         name = ""
         shop_name = ""
         phone = ""
         email = ""
         instagram = ""
-        location = ""
         website = ""
+        location = ""
 
-        # Title or Name
+        # Extract title/name
         title_tag = result.find("h3")
         if title_tag:
-            name = title_tag.text.strip()
+            name = title_tag.get_text().strip()
 
-        # URL
+        # Extract website or Instagram
         cite_tag = result.find("cite")
         if cite_tag:
-            website = cite_tag.text.strip()
-            if "instagram.com" in website:
-                instagram = website
+            url = cite_tag.get_text().strip()
+            if "instagram.com" in url:
+                instagram = url
+            else:
+                website = url
 
-        # Snippet text
+        # Extract text snippet for data mining
         snippet = result.get_text(separator=" ").strip()
-        phone_match = re.search(r"(?:(?:\+91[\-\s]?)?[789]\d{9})", snippet)
-        email_match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", snippet)
-        location_match = re.search(r"(Hyderabad|Secunderabad|Vijayawada|Guntur|Vizag|.*City)", snippet, re.IGNORECASE)
 
+        # Extract international phone numbers
+        phone_match = re.search(r"(\+\d{1,2}\s?)?(\()?\d{3}(\))?[-\s.]?\d{3}[-\s.]?\d{4}", snippet)
         if phone_match:
             phone = phone_match.group()
+
+        # Extract emails
+        email_match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", snippet)
         if email_match:
             email = email_match.group()
-        if location_match:
-            location = location_match.group()
 
-        shop_name = name if "boutique" in name.lower() or "store" in name.lower() else ""
+        # Basic location matching for major cities (expandable)
+        location_match = re.search(r"(New York|Los Angeles|Chicago|Toronto|Vancouver|London|Sydney|Melbourne|Hyderabad|Mumbai|Delhi|Bangalore)", snippet, re.IGNORECASE)
+        if location_match:
+            location = location_match.group().title()
+
+        # Improved shop name logic with global keywords
+        keywords = ["boutique", "fashion", "wear", "retail", "store", "outfitters", "clothing", "apparel", "threads", "design", "studio"]
+        if any(kw in name.lower() for kw in keywords):
+            shop_name = name
 
         data.append({
             "Name": name,
@@ -59,6 +70,7 @@ def extract_info_from_html(html_content):
             "Website": website,
             "Location": location
         })
+
     return data
 
 if uploaded_file:
@@ -67,15 +79,15 @@ if uploaded_file:
     df = pd.DataFrame(extracted_data)
 
     if not df.empty:
-        st.success("✅ Data Extracted Successfully!")
+        st.success("✅ Global Vendor Data Extracted!")
         st.dataframe(df, use_container_width=True)
 
         csv = df.to_csv(index=False).encode("utf-8")
         st.download_button(
-            label="📥 Download as CSV",
+            label="📥 Download Global CSV",
             data=csv,
-            file_name="onlyshops_vendors.csv",
+            file_name="onlyshops_global_vendors.csv",
             mime="text/csv",
         )
     else:
-        st.warning("No vendor data found. Try uploading a different file.")
+        st.warning("No data found. Try a different file or check formatting.")
